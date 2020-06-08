@@ -85,7 +85,7 @@
     <vroom-component
       [localUsers]="localUsers"
       [remoteUsers]="remoteUsers"
-      (locationChanged)="onLocationUpdate($event.x, $event.y)"
+      (locationChanged)="onLocationUpdate($event.x, $event.y, $event.angle)"
     ></vroom-component>
 
     <app-footer

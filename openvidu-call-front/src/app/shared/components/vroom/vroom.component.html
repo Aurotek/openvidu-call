@@ -1,28 +1,5 @@
 <div
   #vroom
 	class="vroom">
-	<div
-	  class="vroom-area"
-		(mousedown)="mousedown($event)">
-		<div
-			class="vroom-detail"
-			*ngFor="let user of _localUsers"
-		>Local User: {{user.nickname}} ({{user.location.x}}, {{user.location.y}})</div>
-		<div
-			class="vroom-detail"
-			*ngFor="let user of _remoteUsers"
-		>Remote User: {{user.nickname}} ({{user.location.x}}, {{user.location.y}})</div>
-		<div
-			*ngFor="let user of _remoteUsers"
-			class="vroom-remote"
-			[style.left.px]="user.location.x - 2"
-			[style.top.px]="user.location.y - 2"
-		></div>
-		<div
-			*ngFor="let user of _localUsers"
-			class="vroom-local"
-			[style.left.px]="user.location.x - 2"
-			[style.top.px]="user.location.y - 2"
-		></div>
-	</div>
+	<div id="vroom-game"></div>
 </div>

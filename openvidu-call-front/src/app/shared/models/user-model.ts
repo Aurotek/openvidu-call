@@ -12,14 +12,29 @@ export class UserLocation {
 	 */
 	y: number;
 
+
+	/**
+	 * User angle (deg)
+	 */
+	angle: number;
+
 	constructor() {
 		this.x = 0;
 		this.y = 0;
+		this.angle = 0;
 	}
 
 	update(x, y) {
 		this.x = x;
 		this.y = y;
+	}
+
+	updateAngle(angle) {
+		this.angle = angle;
+	}
+
+	equals(other: UserLocation): boolean {
+		return this.x === other.x && this.y === other.y && this.angle === other.angle;
 	}
 }
 
@@ -79,6 +94,7 @@ export class UserModel {
 		this.nickname = nickname || 'OpenVidu';
 		this.streamManager = streamManager || null;
 		this.location = new UserLocation();
+		this.location.update(100, 100);
 		this.audioVolume = 1.0;
 	}
 
@@ -176,9 +192,11 @@ export class UserModel {
 	 * Set the user location value
 	 * @param x value of x
 	 * @param y value of y
+	 * @param angle value of angle
 	 */
-	public setLocation(x: number, y: number) {
+	public setLocation(x: number, y: number, angle: number) {
 		this.location.update(x, y);
+		this.location.updateAngle(angle);
 	}
 
 	/**

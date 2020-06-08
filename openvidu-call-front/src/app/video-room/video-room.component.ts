@@ -32,6 +32,8 @@ import { UtilsService } from '../shared/services/utils/utils.service';
 import { MatSidenav } from '@angular/material/sidenav';
 import { ChatService } from '../shared/services/chat/chat.service';
 
+const VIEWING_ANGLE = 120;
+
 @Component({
 	selector: 'app-video-room',
 	templateUrl: './video-room.component.html',
@@ -172,9 +174,9 @@ export class VideoRoomComponent implements OnInit, OnDestroy {
 		this.sendNicknameSignal(nickname);
 	}
 
-	onLocationUpdate(x: number, y: number) {
-		this.oVSessionService.setWebcamLocation(x, y);
-		this.sendLocationSignal(x, y);
+	onLocationUpdate(x: number, y: number, angle: number) {
+		this.oVSessionService.setWebcamLocation(x, y, angle);
+		this.sendLocationSignal(x, y, angle);
 		this.updateLocations();
 		if (this.openviduLayout) {
 			this.updateOpenViduLayout();
@@ -374,7 +376,7 @@ export class VideoRoomComponent implements OnInit, OnDestroy {
 			this.remoteUsersService.add(event, subscriber);
 			this.sendNicknameSignal(this.oVSessionService.getWebcamUserName(), event.stream.connection);
 			const location = this.oVSessionService.getWebcamLocation();
-			this.sendLocationSignal(location.x, location.y, event.stream.connection);
+			this.sendLocationSignal(location.x, location.y, location.angle, event.stream.connection);
 		});
 	}
 
@@ -420,8 +422,8 @@ export class VideoRoomComponent implements OnInit, OnDestroy {
 			if (this.oVSessionService.isMyOwnConnection(connectionId)) {
 				return;
 			}
-			const { x, y } = JSON.parse(event.data);
-			this.remoteUsersService.updateLocation(connectionId, x, y);
+			const { x, y, angle } = JSON.parse(event.data);
+			this.remoteUsersService.updateLocation(connectionId, x, y, angle);
 			this.updateLocations();
 		});
 	}
@@ -511,9 +513,9 @@ export class VideoRoomComponent implements OnInit, OnDestroy {
 		this.session.signal(signalOptions);
 	}
 
-	private sendLocationSignal(x: number, y: number , connection?: Connection) {
+	private sendLocationSignal(x: number, y: number, angle: number , connection?: Connection) {
 		const signalOptions: SignalOptions = {
-			data: JSON.stringify({ x, y }),
+			data: JSON.stringify({ x, y, angle }),
 			type: 'locationChanged',
 			to: connection ? [connection] : undefined
 		};
@@ -558,14 +560,20 @@ export class VideoRoomComponent implements OnInit, OnDestroy {
 	private updateLocations() {
 		const baseLocation = this.oVSessionService.getWebcamLocation();
 		this.remoteUsers.forEach(remoteUser => {
-			const dx = remoteUser.location.x - baseLocation.x;
-			const dy = remoteUser.location.y - baseLocation.y;
-			const distance = Math.sqrt(dx * dx + dy * dy);
+			const rad = Math.atan2(remoteUser.location.y - baseLocation.y, remoteUser.location.x - baseLocation.x);
+			const deg = rad / (Math.PI * 2) * 360;
+			const diffDeg = (baseLocation.angle - deg + 360 * 2) % 360;
+			const isInSight = (diffDeg + VIEWING_ANGLE / 2) % 360 < VIEWING_ANGLE;
 			let volume = 0.0;
-			if (distance < 10.0) {
-				volume = 1.0;
-			} else if (distance < 260.0) {
-				volume = 1.0 - ((distance - 10.0) / 250.0);
+			if (isInSight) {
+				const dx = remoteUser.location.x - baseLocation.x;
+				const dy = remoteUser.location.y - baseLocation.y;
+				const distance = Math.sqrt(dx * dx + dy * dy);
+				if (distance < 10.0) {
+					volume = 1.0;
+				} else if (distance < 260.0) {
+					volume = 1.0 - ((distance - 10.0) / 250.0);
+				}
 			}
 			remoteUser.setAudioVolume(volume);
 		});

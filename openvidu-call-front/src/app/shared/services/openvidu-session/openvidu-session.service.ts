@@ -329,8 +329,8 @@ export class OpenViduSessionService {
 		this.webcamUser.setNickname(nickname);
 	}
 
-	setWebcamLocation(x: number, y: number) {
-		this.webcamUser.setLocation(x, y);
+	setWebcamLocation(x: number, y: number, angle: number) {
+		this.webcamUser.setLocation(x, y, angle);
 	}
 
 	getWebcamLocation(): UserLocation {

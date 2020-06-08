@@ -1,5 +1,6 @@
 import { Component, Input, OnInit, ElementRef, ViewChild, Output, EventEmitter, ViewContainerRef } from '@angular/core';
 import { UserModel } from '../../models/user-model';
+import VRoomGame from './vroom_game';
 
 @Component({
 	selector: 'vroom-component',
@@ -13,6 +14,8 @@ export class VirtualRoomComponent implements OnInit {
 
 	_remoteUsers: UserModel[] = [];
 
+	_vroomGame: VRoomGame = null;
+
 	@Output() locationChanged = new EventEmitter<any>();
 
 	@Input()
@@ -23,18 +26,24 @@ export class VirtualRoomComponent implements OnInit {
 	@Input()
 	set remoteUsers(users: UserModel[]) {
 		this._remoteUsers = users;
+		if (this._vroomGame) {
+			this._vroomGame.setRemoteUsers(users);
+		}
 	}
 
 	constructor() {}
 
 	ngOnInit() {
-	}
-
-	mousedown(event) {
-		const rect = event.currentTarget.getBoundingClientRect();
-		this.locationChanged.emit({
-			x: event.clientX - rect.left,
-			y: event.clientY - rect.top,
+		this._vroomGame = new VRoomGame('vroom-game', this._localUsers[0]);
+		this._vroomGame.playerLocationChanged.subscribe(location => {
+			this.locationChanged.emit({
+				x: location.x,
+				y: location.y,
+				angle: location.angle
+			});
+		});
+		this._vroomGame.events.once(Phaser.Core.Events.READY, () => {
+			this._vroomGame.setRemoteUsers(this._remoteUsers);
 		});
 	}
 }

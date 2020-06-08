@@ -431,7 +431,8 @@ export class OpenViduLayout {
 				width: dimensions.targetWidth,
 				height: dimensions.targetHeight,
 				vroomRatio: ovVideoComponent != null ?
-					parseFloat(ovVideoComponent.getAttribute('data-audio-volume')) : 1
+					// TODO: The video disappears if the video size is 0 at the beginning.
+					Math.max(0.1, parseFloat(ovVideoComponent.getAttribute('data-audio-volume'))) : 1
 			};
 			// If we're using a fixedRatio then we need to set the correct ratio for this element
 			if (fixedRatio) {

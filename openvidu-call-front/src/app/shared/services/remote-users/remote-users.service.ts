@@ -80,9 +80,9 @@ export class RemoteUsersService {
 		this._remoteUsers.next(this.users);
 	}
 
-	updateLocation(connectionId: any, x: number, y: number) {
+	updateLocation(connectionId: any, x: number, y: number, angle: number) {
 		const user = this.getRemoteUserByConnectionId(connectionId);
-		user?.setLocation(x, y);
+		user?.setLocation(x, y, angle);
 		this._remoteUsers.next(this.users);
 	}
 
