@@ -24,7 +24,6 @@ const BASE_SIZE = 35;
 const HEIGHT = 400;
 const WIDTH = 600;
 const SPEED = 100;
-const ROTATION_SPEED = 3;  // deg
 const VIEWING_ANGLE = 120; // deg
 const VIEW_LINE_LENGTH = 150;
 
@@ -81,8 +80,11 @@ class MainScene extends Phaser.Scene {
 	private beforePlayerLocation: UserLocation;
 	private localUserModel: UserModel;
 	private remoteUserModels: UserModel[] = [];
+	private tapsCount = 0;
+	private tapPoint: {x: number, y: number};
 
 	playerLocationChanged = new Subject<UserLocation>();
+	private tap: any;
 
 	constructor() {
 		super({
@@ -115,8 +117,6 @@ class MainScene extends Phaser.Scene {
 		this.createPlayer();
 
 		this.cursors = this.input.keyboard.addKeys({
-			rotateLeft: Phaser.Input.Keyboard.KeyCodes.Q,
-			rotateRight: Phaser.Input.Keyboard.KeyCodes.E,
 			up: Phaser.Input.Keyboard.KeyCodes.W,
 			up2: Phaser.Input.Keyboard.KeyCodes.UP,
 			down: Phaser.Input.Keyboard.KeyCodes.S,
@@ -126,6 +126,10 @@ class MainScene extends Phaser.Scene {
 			right: Phaser.Input.Keyboard.KeyCodes.D,
 			right2: Phaser.Input.Keyboard.KeyCodes.RIGHT
 		}) as {[key: string]: Phaser.Input.Keyboard.Key};
+
+		this.input.on('pointerdown', pointer => {
+			this.tapPoint = {x: pointer.x, y: pointer.y};
+		});
 	}
 
 	private createMap(): void {
@@ -191,7 +195,6 @@ class MainScene extends Phaser.Scene {
 	private updatePlayer(): void {
 		let x = 0;
 		let y = 0;
-		let angle = 0;
 
 		if (this.cursors.up.isDown || this.cursors.up2.isDown) {
 			y = -SPEED;
@@ -205,14 +208,39 @@ class MainScene extends Phaser.Scene {
 			x = SPEED;
 		}
 
-		if (this.cursors.rotateLeft.isDown) {
-			angle = ROTATION_SPEED;
-		} else if (this.cursors.rotateRight.isDown) {
-			angle = -ROTATION_SPEED;
+		if (x && y) {
+			x = x * Math.cos(Math.PI / 4);
+			y = y * Math.sin(Math.PI / 4);
 		}
 
-		this.player.setVelocity(x, y);
-		this.player.addAngle(angle);
+		if (x || y) {
+			this.tapPoint = null;
+			const v = new Phaser.Math.Vector2(x, y).rotate(-Math.PI / 4);
+			const angle = v.angle();
+			this.player.setVelocity(v.x, v.y);
+			this.player.setAngle(angle * Phaser.Math.RAD_TO_DEG);
+		} else if (this.tapPoint) {
+			const current = this.player.getIsoPointXY();
+			const target = isoUnprojectPoint(this.iso.projector, this.tapPoint);
+			const v1 = new Phaser.Math.Vector2(current.x, current.y);
+			const v2 = new Phaser.Math.Vector2(target.x, target.y);
+			const diff = v2.clone().subtract(v1).length();
+			if (diff > 5) {
+				const rad = Phaser.Math.Angle.BetweenPoints(v1, v2);
+				const v3 = new Phaser.Math.Vector2().setToPolar(rad, SPEED);
+				this.player.setVelocity(v3.x, v3.y);
+				this.player.setAngle(rad * Phaser.Math.RAD_TO_DEG);
+			} else {
+				this.player.setVelocity(0, 0);
+			}
+		} else {
+			this.player.setVelocity(x, y);
+		}
+
+		if (this.localUserModel.nickname !== this.player.getNicknameText()) {
+			this.player.setNicknameText(this.localUserModel.nickname);
+		}
+
 		this.player.update();
 	}
 
@@ -242,6 +270,10 @@ class MainScene extends Phaser.Scene {
 				);
 				remotePlayer.addNickname(remoteUser.nickname, 10999, '#fff', 'rgba(0, 0, 0, 0.65)');
 				this.remotePlayers[id] = remotePlayer;
+			}
+
+			if (remoteUser.nickname !== remotePlayer.getNicknameText()) {
+				remotePlayer.setNicknameText(remoteUser.nickname);
 			}
 			remotePlayer.setLocation(remoteUser.location);
 			remotePlayer.update();
@@ -348,6 +380,14 @@ class VRoomPlayer {
 		this.scene.add.existing(this.nicknameView);
 	}
 
+	getNicknameText(): string {
+		return this.nicknameView.text;
+	}
+
+	setNicknameText(nickname: string): void {
+		this.nicknameView.setText(nickname);
+	}
+
 	setVelocity(velocityX: number, velocityY: number): void {
 		this.character.body.velocity.setTo(velocityX, velocityY);
 	}
@@ -367,17 +407,20 @@ class VRoomPlayer {
 
 	updateViewingCursor(): void {
 		this.viewingCursor.setX(this.character.x);
-		this.viewingCursor.setY(this.character.y + this.character.height * 0.365 * Math.cos(Math.PI));
+		this.viewingCursor.setY(this.character.y - this.character.height * 0.365);
+
+		const v1 = new Phaser.Math.Vector2().setToPolar(
+			(this.angle - this.viewingAngle / 2) * Phaser.Math.DEG_TO_RAD,
+			this.viewLineLength
+		);
+		const v2 = new Phaser.Math.Vector2().setToPolar(
+			(this.angle + this.viewingAngle / 2) * Phaser.Math.DEG_TO_RAD,
+			this.viewLineLength
+		);
 
 		const p0 = this.iso.projector.project(new IsoPoint3());
-		const p1 = this.iso.projector.project(new IsoPoint3(
-			this.viewLineLength * Math.cos((this.angle - this.viewingAngle / 2) / 360 * (Math.PI * 2)),
-			this.viewLineLength * Math.sin((this.angle - this.viewingAngle / 2) / 360 * (Math.PI * 2)),
-		));
-		const p2 = this.iso.projector.project(new IsoPoint3(
-			this.viewLineLength * Math.cos((this.angle + this.viewingAngle / 2) / 360 * (Math.PI * 2)),
-			this.viewLineLength * Math.sin((this.angle + this.viewingAngle / 2) / 360 * (Math.PI * 2)),
-		));
+		const p1 = this.iso.projector.project(new IsoPoint3(v1.x, v1.y));
+		const p2 = this.iso.projector.project(new IsoPoint3(v2.x, v2.y));
 
 		this.viewingCursor
 			.clear()
@@ -394,6 +437,14 @@ class VRoomPlayer {
 	updateNicknameView(): void {
 		this.nicknameView.setX(this.character.x - this.nicknameView.width / 2);
 		this.nicknameView.setY(this.character.y - this.character.height / 2 - this.nicknameView.height);
+	}
+
+	getPointXY(): {x: number, y: number} {
+		return {x: this.character.x, y: this.character.y};
+	}
+
+	getIsoPointXY(): {x: number, y: number} {
+		return {x: this.character.isoX, y: this.character.isoY};
 	}
 
 	getLocation(): UserLocation {
@@ -423,6 +474,20 @@ class VRoomPlayer {
 // Fix bug of phaser3-plugin-isometric
 // @ts-ignore
 Phaser.GROUP = 'Group';
+
+// use this instead of IsoPlugin.projector.unproject() because it has bugs
+function isoUnprojectPoint(projector, point, z = 0) {
+	const { width, height } = projector.scene.sys.game.config;
+	const x = point.x - (width * projector.origin.x);
+	const y = point.y - (height * projector.origin.y) + z;
+
+	return new IsoPoint3(
+		x / (2 * projector._transform[0]) + y / (2 * projector._transform[1]),
+		-(x / (2 * projector._transform[0])) + y / (2 * projector._transform[1]),
+		z
+	);
+}
+
 
 
 // based on http://udof.org/phaser/iso/doc/Projector.js.html#sunlight-1-line-131
