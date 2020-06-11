@@ -32,7 +32,7 @@ import { UtilsService } from '../shared/services/utils/utils.service';
 import { MatSidenav } from '@angular/material/sidenav';
 import { ChatService } from '../shared/services/chat/chat.service';
 
-const VIEWING_ANGLE = 120;
+const VIEWING_ANGLE = 200;
 
 @Component({
 	selector: 'app-video-room',
@@ -564,17 +564,20 @@ export class VideoRoomComponent implements OnInit, OnDestroy {
 			const deg = rad / (Math.PI * 2) * 360;
 			const diffDeg = (baseLocation.angle - deg + 360 * 2) % 360;
 			const isInSight = (diffDeg + VIEWING_ANGLE / 2) % 360 < VIEWING_ANGLE;
+			const dx = remoteUser.location.x - baseLocation.x;
+			const dy = remoteUser.location.y - baseLocation.y;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+
 			let volume = 0.0;
-			if (isInSight) {
-				const dx = remoteUser.location.x - baseLocation.x;
-				const dy = remoteUser.location.y - baseLocation.y;
-				const distance = Math.sqrt(dx * dx + dy * dy);
-				if (distance < 10.0) {
-					volume = 1.0;
-				} else if (distance < 260.0) {
-					volume = 1.0 - ((distance - 10.0) / 250.0);
-				}
+			if (distance < 10.0) {
+				volume = 1.0;
+			} else if (distance < 260.0) {
+				volume = 1.0 - ((distance - 10.0) / 250.0);
 			}
+			if (!isInSight) {
+				volume *= 0.75;
+			}
+
 			remoteUser.setAudioVolume(volume);
 		});
 	}

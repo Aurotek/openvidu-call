@@ -24,8 +24,6 @@ const BASE_SIZE = 35;
 const HEIGHT = 400;
 const WIDTH = 600;
 const SPEED = 100;
-const VIEWING_ANGLE = 120; // deg
-const VIEW_LINE_LENGTH = 150;
 
 
 export default class VRoomGame extends Phaser.Game {
@@ -131,17 +129,6 @@ class MainScene extends Phaser.Scene {
 		this.createMap();
 		this.createPlayer();
 
-		this.cursors = this.input.keyboard.addKeys({
-			up: Phaser.Input.Keyboard.KeyCodes.W,
-			up2: Phaser.Input.Keyboard.KeyCodes.UP,
-			down: Phaser.Input.Keyboard.KeyCodes.S,
-			down2: Phaser.Input.Keyboard.KeyCodes.DOWN,
-			left: Phaser.Input.Keyboard.KeyCodes.A,
-			left2: Phaser.Input.Keyboard.KeyCodes.LEFT,
-			right: Phaser.Input.Keyboard.KeyCodes.D,
-			right2: Phaser.Input.Keyboard.KeyCodes.RIGHT
-		}) as {[key: string]: Phaser.Input.Keyboard.Key};
-
 		this.input.on('pointerdown', pointer => {
 			this.tapPoint = {x: pointer.x, y: pointer.y};
 		});
@@ -183,15 +170,6 @@ class MainScene extends Phaser.Scene {
 		}
 		this.player = new VRoomPlayer(this, this.iso, this.isoPhysics);
 		this.player.addCharacter(x, y, 30, this.isoGroup, true, this.localCharacterKeys);
-		this.player.addViewingCursor(
-			10000,
-			0,
-			VIEWING_ANGLE,
-			VIEW_LINE_LENGTH,
-			8,
-			0xff0000,
-			0.1
-		);
 		this.player.addNickname(nickname, 11000, '#fff', 'rgba(0, 0, 0, 0.8)');
 	}
 
@@ -209,33 +187,7 @@ class MainScene extends Phaser.Scene {
 	}
 
 	private updatePlayer(): void {
-		let x = 0;
-		let y = 0;
-
-		if (this.cursors.up.isDown || this.cursors.up2.isDown) {
-			y = -SPEED;
-		} else if (this.cursors.down.isDown || this.cursors.down2.isDown) {
-			y = SPEED;
-		}
-
-		if (this.cursors.left.isDown || this.cursors.left2.isDown) {
-			x = -SPEED;
-		} else if (this.cursors.right.isDown || this.cursors.right2.isDown) {
-			x = SPEED;
-		}
-
-		if (x && y) {
-			x = x * Math.cos(Math.PI / 4);
-			y = y * Math.sin(Math.PI / 4);
-		}
-
-		if (x || y) {
-			this.tapPoint = null;
-			const v = new Phaser.Math.Vector2(x, y).rotate(0);
-			const angle = v.angle();
-			this.player.setVelocity(v.x, v.y);
-			this.player.setAngle(angle * Phaser.Math.RAD_TO_DEG);
-		} else if (this.tapPoint) {
+		if (this.tapPoint) {
 			const current = this.player.getIsoPointXY();
 			const target = isoUnprojectPoint(this.iso.projector, this.tapPoint);
 			const v1 = new Phaser.Math.Vector2(current.x, current.y);
@@ -250,7 +202,7 @@ class MainScene extends Phaser.Scene {
 				this.player.setVelocity(0, 0);
 			}
 		} else {
-			this.player.setVelocity(x, y);
+			this.player.setVelocity(0, 0);
 		}
 
 		if (this.localUserModel.nickname !== this.player.getNicknameText()) {
@@ -333,6 +285,7 @@ class VRoomPlayer {
 		this.scene = scene;
 		this.iso = iso;
 		this.isoPhysics = isoPhysics;
+		this.angle = 0;
 	}
 
 	addCharacter(
@@ -483,8 +436,12 @@ class VRoomPlayer {
 			this.isoPhysics.world.bodies.delete(this.character.body);
 		}
 		this.character.destroy();
-		this.viewingCursor.destroy();
-		this.nicknameView.destroy();
+		if (this.viewingCursor) {
+			this.viewingCursor.destroy();
+		}
+		if (this.nicknameView) {
+			this.nicknameView.destroy();
+		}
 	}
 }
 
